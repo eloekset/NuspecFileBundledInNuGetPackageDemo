@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0" DefaultTargets="BuildNuGetPackage">
+
+  <Target Name="ValidateNuGetBuildSettings">
+    <ItemGroup>
+      <_RequiredProperties Include="NuSpecTemplateFolder">
+        <Value>$(NuSpecTemplateFolder)</Value>
+      </_RequiredProperties>
+      <_RequiredProperties Include="NuSpecTemplateFileName">
+        <Value>$(NuSpecTemplateFileName)</Value>
+      </_RequiredProperties>
+      <_RequiredProperties Include="NuGetPackageVersion">
+        <Value>$(NuGetPackageVersion)</Value>
+      </_RequiredProperties>
+      <_RequiredProperties Include="ReleaseNotes">
+        <Value>$(ReleaseNotes)</Value>
+      </_RequiredProperties>
+      <!-- 
+          _RequiredItems is the item where required items should be placed. 
+          The following metadata is significant: 
+            REQUIRED METADATA: 
+            Identity          = This will basically be used to identify the specific required item 
+            RequiredValue     = This is the specific value that will be validated to exist 
+
+            OPTIONAL METADATA 
+            RequiredFilePath  = Populate this with a path that should exists, if it is not empty 
+                                  then it will be checked to exist on disk. 
+            -->
+    </ItemGroup>
+
+    <Message Importance="high" Text="In BuildNuGetPackage.proj the NuSpecTemplateFolder is $(NuSpecTemplateFolder)" />
+
+    <!-- Raise an error if any value in _RequiredProperties is missing  -->
+    <Error Condition="'%(_RequiredProperties.Value)'==''" Text="Missing required property [%(_RequiredProperties.Identity)]" />
+    <!-- Raise an error if any value in _RequiredItems is empty  -->
+    <!--<Error Condition="'%(_RequiredItems.RequiredValue)'==''" Text="Missing required item value [%(_RequiredItems.Identity)]" />-->
+    <!-- Validate any file/directory that should exist  -->
+    <Error Condition="'%(_RequiredItems.RequiredFilePath)' != '' and !Exists('%(_RequiredItems.RequiredFilePath)')" Text="Unable to find expeceted path [%(_RequiredItems.RequiredFilePath)] on item [%(_RequiredItems.Identity)]" />
+  </Target>
+
+  <PropertyGroup>
+    <PackageDir>$(MSBuildThisFileDirectory)..\NuGet\</PackageDir>
+    <NuGetApp>$(MSBuildThisFileDirectory)..\..\.nuget\NuGet.exe</NuGetApp>
+    <NuSpecTemplateFile>$(NuSpecTemplateFolder)$(NuSpecTemplateFileName).nuspec</NuSpecTemplateFile>
+    <NuSpecFile>$(NuSpecTemplateFolder)$(NuSpecTemplateFileName).$(NuGetPackageVersion).nuspec</NuSpecFile>
+  </PropertyGroup>
+
+  <UsingTask TaskName="XmlUpdate" AssemblyFile="$(MSBuildThisFileDirectory)..\..\.build\MSBuild.Community.Tasks.dll" />
+
+  <!-- Modify the default .nuspec file -->
+  <Target Condition="!Exists($(NuSpecFile))" Name="ModifyNuSpec">
+    <Message Importance="high" Text="NuSpecTemplateFileName is $(NuSpecTemplateFileName)" />
+    <Message Importance="high" Text="ProjectDir is $(ProjectDir)" />
+    <Error Condition="!Exists($(NuSpecTemplateFile))" Text="Expected .nuspec template not found at: $(NuSpecTemplateFile)" />
+    <Copy SourceFiles="$(NuSpecTemplateFile)" DestinationFiles="$(NuSpecFile)" />
+    <Error Condition="!Exists($(NuSpecFile))" Text="Target .nuspec file does not exist at $(NuSpecFile)" />
+    <XmlUpdate Condition="Exists($(NuSpecFile))"
+               Prefix="n"
+               Namespace="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd"
+               XmlFileName="$(NuSpecFile)"
+               XPath="/n:package/n:metadata/n:version"
+               Value="$(NuGetPackageVersion)" />
+    <XmlUpdate Condition="Exists($(NuSpecFile)) And $(ReleaseNotes) != ''"
+               Prefix="n"
+               Namespace="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd"
+               XmlFileName="$(NuSpecFile)"
+               XPath="/n:package/n:metadata/n:releaseNotes"
+               Value="$(ReleaseNotes)" />
+  </Target>
+
+  <!-- Create the .nupkg file -->
+  <Target Condition="Exists($(NuSpecFile))"  Name="CreateNuGetPackage">
+    <Exec Condition='!Exists($(PackageDir))' Command='mkdir "$(PackageDir)"' />
+    <Exec WorkingDirectory="$(PackageDir)"
+          Command='"$(NuGetApp)" pack "$(NuSpecFile)" -Verbosity detailed' />
+  </Target>
+
+  <!-- The main target that runs all other targets -->
+  <Target Name="BuildNuGetPackage" DependsOnTargets="ValidateNuGetBuildSettings;ModifyNuSpec;CreateNuGetPackage" />
+</Project>

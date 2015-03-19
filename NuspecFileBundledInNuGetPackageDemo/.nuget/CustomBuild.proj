@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Project ToolsVersion="12.0" DefaultTargets="AfterBuild" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <!-- Define properties required by BuildNuGetPackage.proj -->
+  <PropertyGroup>
+    <NuSpecTemplateFolder>$(MSBuildThisFileDirectory)</NuSpecTemplateFolder>
+    <NuSpecTemplateFileName>DemoPackage</NuSpecTemplateFileName>
+    <NuGetPackageVersion>1.0.1</NuGetPackageVersion>
+    <ReleaseNotes>Initial release.</ReleaseNotes>
+  </PropertyGroup>
+  <Import Project="BuildNuGetPackage.proj" />
+
+  <!-- Default target that runs all reusable targets -->
+  <Target Name="AfterBuild" DependsOnTargets="BuildNuGetPackage" />
+</Project>
